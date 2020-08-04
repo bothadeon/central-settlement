@@ -1,3 +1,38 @@
+/*
+UPDATE participantPosition PP
+INNER JOIN
+(SELECT
+PC.participantCurrencyId
+  , TP.Amount
+FROM
+transferparticipant TP
+INNER JOIN participantcurrency PC ON TP.participantCurrencyId = PC.participantCurrencyId
+INNER JOIN settlementmodel M ON PC.ledgerAccountTypeId = M.ledgerAccountTypeId
+INNER JOIN settlementgranularity G ON M.settlementGranularityId = G.settlementGranularityId
+INNER JOIN transferParticipantRoleType R ON TP.transferParticipantRoleTypeId = R.transferParticipantRoleTypeId
+WHERE
+TP.transferId = @ThisTransfer
+AND G.name = 'GROSS'
+AND R.name = 'PAYER_DFSP'
+UNION SELECT
+PC1.participantCurrencyId
+  , TP.amount
+FROM
+transferparticipant TP
+INNER JOIN participantcurrency PC ON TP.participantCurrencyId = PC.participantCurrencyId
+INNER JOIN settlementmodel M ON PC.ledgerAccountTypeId = PC.ledgerAccountTypeId
+INNER JOIN settlementgranularity G ON M.settlementGranularityId = G.settlementGranularityId
+INNER JOIN participantCurrency PC1 ON
+PC1.currencyId = PC.currencyId
+AND PC1.participantId = PC.participantId
+AND PC1.ledgerAccountTypeId = M.settlementAccountId
+WHERE
+TP.transferId = @ThisTransfer
+AND G.name = 'GROSS'
+) AS TR ON PP.participantCurrencyId = TR.ParticipantCurrencyId
+SET PP.value = PP.value+TR.amount
+; */
+
 'use strict'
 
 const Db = require('../../lib/db')
@@ -44,8 +79,8 @@ const getWTFforNow = async function () {
                       this.andWhere({ 'G.name': 'GROSS' })
                     })
                   })
-              }).as('TR')
-          })
+              })
+          }).joinRaw('AS TR ON PP.participantCurrencyId = TR.ParticipantCurrencyId')
         await trx.commit
         return 'committed'
       } catch (err) {
